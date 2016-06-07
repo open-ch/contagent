@@ -1,0 +1,59 @@
+html, body {
+	font-family: Consolas, Arial;
+	margin: 0;
+	padding: 0;
+	background-color: #FCFCFC;
+	text-shadow:  0 0 0.12em rgba(0,0,0,0.2);
+}
+div {
+	text-align:left;
+	display:block;
+	margin:10px auto;
+}
+
+a {
+	text-decoration: none;
+	margin: 10px auto;
+	margin-bottom: 5px;
+	color: black;
+	text-shadow: 0 0 0.12em rgba(0,0,0,0.2), 0 2px 3px rgba(0,0,0,0.40);
+	font-size: 12pt;
+	transition: all 75ms;
+	font-weight: bold;
+}
+a:hover, a:focus {
+	text-shadow: 0 0 0.12em rgba(0,0,0,0.2), 0 4px 6px rgba(0,0,0,0.40);
+	transform: translateY(-1px);
+}
+
+a#home, .browser-info {
+	float: left;
+	clear: both;
+}
+
+#links {
+	overflow: auto;
+	width: 80vw;
+	margin: 5vh auto;
+	padding: 0 3vw 0 3vw;
+}
+
+
+.linkblock {
+	display: block;
+	float:left;
+	margin-right: 30px;
+	padding: 10px;
+	padding-right: 15px;
+	border-radius: 10px;
+	border: solid rgb(200,200,200) 1px;
+}
+
+.linkblock h2{
+	margin-top: 0px;
+	margin-bottom: 15px;
+}
+
+.linkblock a {
+	display: block;
+}

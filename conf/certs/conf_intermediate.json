@@ -1,0 +1,11 @@
+{
+    "signing": {
+        "default": {
+            "expiry": "43800h",
+            "usages": [
+				"cert sign"
+            ],
+			"is_ca": true
+		}
+    }
+}

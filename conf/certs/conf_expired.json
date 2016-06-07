@@ -1,0 +1,14 @@
+{
+    "signing": {
+        "default": {
+			"backdate": "8784h",
+            "expiry": "8760h",
+            "usages": [
+                "signing",
+                "key encipherment",
+                "server auth"
+            ]
+		}
+    }
+}
+
