@@ -58,8 +58,16 @@
 							<input type="submit" value="Return">
 					</form></td>
 				</tr>
+				<tr>
+					<td>no http, just print:</td>
+					<td><form onsubmit="javascript:header('print', document.getElementById('print').value);return false;" >
+							<input type="text" name="print" id="print">
+							<input type="submit" value="Return">
+					</form></td>
+				</tr>
 			</table>
-			  
+            <br>
+            <a href="https://http.<!--# echo var="SERVER_NAME" -->/abort">Abort an http connection immediately</a>
 	</div>
 	<a href="index.html" id="home"> < HOME</a>
 </div>

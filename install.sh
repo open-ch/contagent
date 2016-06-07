@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eu -o pipefail
 
 # This script copies all data needed to configure the server to a temporary directory, replaces all the dummy variables, generates certificates and archives and eventually moves the result to the nginx configuration path (prefix)
 
@@ -15,9 +16,10 @@ error_exit()
 }
 
 # Check Provided Options
-OPTIONS=`getopt --name $0 --options "h" --longoptions "help,server:,project:,nginx-prefix:,root-ca:,root-ca-key:,country:,state:,location:,organization:,org-unit:" -- "$@"`
+OPTIONS=`getopt --name $0 --options "h" --longoptions "help,server:,project:,nginx-prefix:,root-ca:,root-ca-key:,country:,state:,location:,organization:,org-unit:,crl-out:" -- "$@"`
 [ $? = 0 ] || exit 1
 
+HELP=false
 eval set -- "$OPTIONS"
 while true; do
     case $1 in
@@ -76,6 +78,11 @@ while true; do
             shift; shift; continue
         ;;
 
+        '--crl-out')
+            CRL_OUT_FILE="$2"
+            shift; shift; continue
+        ;;
+        
         '--')
             break
         ;;
@@ -87,6 +94,13 @@ while true; do
 
     esac
 done
+
+# Check if requirements for running this script are met
+check_requirements() {
+    sed --help > /dev/null
+    cfssl print-defaults list > /dev/null
+    echo {} | jq . > /dev/null
+}
 
 # Prompt for options not set as arguments
 prompt_for_missing_arguments() {
@@ -104,25 +118,22 @@ copy_to_tmp() {
 
 handle_root_ca() {
     # Copy root ca cert and key to dedicated path in TEMP_DIR if they were specified and they exist
-    if [[ -f "$ROOT_CA" && -f "$ROOT_CA_KEY" ]]
+    if [[ -f "${ROOT_CA-''}" && -f "${ROOT_CA_KEY-''}" ]]
     then
         echo "**** Using specified root certificate ($ROOT_CA) and private key ($ROOT_CA_KEY) ..."
         cp "$ROOT_CA" $TEMP_DIR/"$PROJECT_NAME"/conf/certs/root.pem
         cp "$ROOT_CA_KEY" $TEMP_DIR/"$PROJECT_NAME"/conf/certs/root-key.pem
         local cert_json
+        
         # Exit if supplied root ca cannot be read by cfssl certinfo, if, e.g., it contains a certificate chain
         cert_json=$(cfssl certinfo -cert "$ROOT_CA") || error_exit '**** !! Problem while parsing root ca (cfssl only takes single certificates, no chains) !!'
-        remove_quotes() {
-            local result=${1#*\"}
-            result=${result%\"*}
-            if [[ $result != "null" ]]; then echo $result; fi
-        }
+        
         # If not set as argument use names from root ca
-    	if [[ -z ${CERT_COUNTRY+"x"} ]];      then CERT_COUNTRY=$(remove_quotes $(echo $cert_json      | jq .subject.country)) ; fi
-    	if [[ -z ${CERT_STATE+"x"} ]];        then CERT_STATE=$(remove_quotes $(echo $cert_json        | jq .subject.province)) ; fi
-    	if [[ -z ${CERT_LOCATION+"x"} ]];     then CERT_LOCATION=$(remove_quotes $(echo $cert_json     | jq .subject.locality)) ; fi
-    	if [[ -z ${CERT_ORGANIZATION+"x"} ]]; then CERT_ORGANIZATION=$(remove_quotes $(echo $cert_json | jq .subject.organization)) ; fi
-    	if [[ -z ${CERT_ORG_UNIT+"x"} ]];     then CERT_ORG_UNIT=$(remove_quotes $(echo $cert_json     | jq .subject.organizational_unit)) ; fi
+    	if [[ -z ${CERT_COUNTRY+"x"} ]];      then CERT_COUNTRY=$(echo $cert_json      | jq --raw-output .subject.country) ; fi
+    	if [[ -z ${CERT_STATE+"x"} ]];        then CERT_STATE=$(echo $cert_json        | jq --raw-output .subject.province) ; fi
+    	if [[ -z ${CERT_LOCATION+"x"} ]];     then CERT_LOCATION=$(echo $cert_json     | jq --raw-output .subject.locality) ; fi
+    	if [[ -z ${CERT_ORGANIZATION+"x"} ]]; then CERT_ORGANIZATION=$(echo $cert_json | jq --raw-output .subject.organization) ; fi
+    	if [[ -z ${CERT_ORG_UNIT+"x"} ]];     then CERT_ORG_UNIT=$(echo $cert_json     | jq --raw-output .subject.organizational_unit) ; fi
     else
         echo "**** Generating new root certificate and private key ..."
     	if [[ -z ${CERT_COUNTRY+"x"} ]];      then read -p "Please specify country for certificate generation: "                     CERT_COUNTRY ; fi
@@ -131,6 +142,14 @@ handle_root_ca() {
     	if [[ -z ${CERT_ORGANIZATION+"x"} ]]; then read -p "Please specify organization for certificate generation: "                CERT_ORGANIZATION ; fi
     	if [[ -z ${CERT_ORG_UNIT+"x"} ]];     then read -p "Please specify name of organizational unit for certificate generation: " CERT_ORG_UNIT ; fi
     fi
+    
+    # Set unset variables to the empty string
+    CERT_COUNTRY="${CERT_COUNTRY-''}"
+    CERT_STATE="${CERT_STATE-''}"
+    CERT_LOCATION="${CERT_LOCATION-''}"
+    CERT_ORGANIZATION="${CERT_ORGANIZATION-''}"
+    CERT_ORG_UNIT="${CERT_ORG_UNIT-''}"
+    
 }
 
 # Replace [% VARIABLES %] with corresponding values
@@ -162,6 +181,8 @@ generate_certificates() {
 
 	# Generate all the other certs
 	cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_exp2years.json csr_wildcard.json   | cfssljson -bare wildcard-normal
+	cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_exp2years.json csr_wildcard.json   | cfssljson -bare blacklist-fingerprint
+	cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_exp2years.json csr_cert-blacklist-domainname.json   | cfssljson -bare blacklist-domainname
 	cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_expired.json   csr_wildcard.json   | cfssljson -bare wildcard-expired
 	cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_exp2years.json csr_wrong-host.json | cfssljson -bare wrong-host
 
@@ -169,22 +190,36 @@ generate_certificates() {
 	cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_exp2years.json csr_10000-sans.json | cfssljson -bare 10000-sans
 
 	cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_exp2years.json csr_wildcard-rsa4096.json | cfssljson -bare wildcard-rsa4096
+    
+    cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_exp2years.json csr_wildcard.json | cfssljson -bare wildcard-revoked
 	
 	# make complete certificate chains
 	for file in $(find * -name "*.pem" -not -name "*-key.pem" -not -name "root.pem" -not -name "intermediate.pem")
 	do
-		cat intermediate.pem root.pem >> $file
+        cp "$file" "${file%.pem}-nochain.pem"
+		cat intermediate.pem root.pem >> "$file"
 	done
 	
+    # Self-signed
 	cfssl gencert -initca csr_wildcard.json | cfssljson -bare wildcard-self-signed
 	cfssl sign -ca wildcard-self-signed.pem -ca-key wildcard-self-signed-key.pem -config conf_exp2years.json wildcard-self-signed.csr | cfssljson -bare wildcard-self-signed
-	
+    
+    # Incomplete chain
 	cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_exp2years.json csr_wildcard.json | cfssljson -bare wildcard-incomplete-chain
+	cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_exp2years.json csr_wildcard.json | cfssljson -bare whitelist-fingerprint
+	cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_exp2years.json csr_wildcard.json | cfssljson -bare whitelist-domainname
     
     # cfssl chooses signing algorithm according to private-key length of signing certificate -> intermediate with 4096bit private key signs with sha512
 	cfssl gencert -ca root.pem -ca-key root-key.pem -config conf_intermediate.json csr_intermediate4096.json | cfssljson -bare intermediate4096
     cfssl gencert -ca intermediate4096.pem -ca-key intermediate4096-key.pem -config conf_exp2years.json csr_wildcard.json | cfssljson -bare sha512-wildcard
     cat intermediate4096.pem root.pem >> sha512-wildcard.pem
+    
+    # Generate crl for revoked certificate and copy to specified path (if specified)
+    if [[ -n "${CRL_OUT_FILE-}" ]];
+    then
+        cfssl certinfo -cert wildcard-revoked-nochain.pem | jq --raw-output .serial_number | cfssl gencrl - intermediate.pem intermediate-key.pem \
+            | base64 -d | openssl crl -outform PEM -inform DER -text -out "$CRL_OUT_FILE"
+    fi
 
 	# Delete all the json formatted cfssl config files
     rm *.json
@@ -205,7 +240,7 @@ generate_archives() {
 		while [ $number -lt $numberscount ]
 		do
 			randomtext="$randomtext$(( RANDOM % $range ))"
-			((number++))
+			((++number))
 		done
 		
 		echo -n $randomtext > tmp
@@ -223,7 +258,7 @@ generate_archives() {
 		while [ $rep -lt $repetitions ]
 		do
 			echo -n $randomtext >> tmp
-			((rep++))
+			((++rep))
 		done
 
 		rm -f $zipfile
@@ -317,6 +352,10 @@ then
 fi
 
 # Execute methods defined above
+echo -n "**** Checking if requirements for installation are met ..."
+check_requirements
+echo " OK!"
+
 prompt_for_missing_arguments
 
 echo "**** Copying files to $TEMP_DIR/$PROJECT_NAME ..."

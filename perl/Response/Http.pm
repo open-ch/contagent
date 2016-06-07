@@ -66,6 +66,15 @@ sub set_many_custom_headers {
     return OK;
 }
 
+# Set print value
+sub print {
+    my $r             = shift;
+    use URI::Escape;
+    my $print_content = uri_unescape($r->variable('print_content'));
+    $r->print($print_content);
+    return OK;
+}
+
 1;
 
 __END__
