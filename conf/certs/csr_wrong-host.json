@@ -1,0 +1,20 @@
+{
+    "CN": "sometotallydifferentserver.[% SERVER_NAME %]",
+    "hosts": [
+        "sometotallydifferentserver.[% SERVER_NAME %]"
+    ],
+    "key": {
+        "algo": "rsa",
+        "size": 2048
+    },
+    "names": [
+        {
+            "C": "[% CERT_COUNTRY %]",
+            "ST": "[% CERT_STATE %]",
+            "L": "[% CERT_LOCATION %]",
+			"O": "[% CERT_ORGANIZATION %]",
+			"OU": "[% CERT_ORG_UNIT %]"
+        }
+    ]
+}
+

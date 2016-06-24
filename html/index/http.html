@@ -1,0 +1,76 @@
+
+<!doctype html>
+<html>
+<head>
+	<title><!--# echo var="SERVER_NAME" --></title>
+	<link rel="stylesheet" href="style.css" />
+	<script>
+	function header(key, val) {
+		window.location= "http://http.<!--# echo var="SERVER_NAME" -->/" + key + "/" + val;
+	} 
+	</script>
+</head>
+<body>
+
+<div id="links">
+    <h1><!--# echo var="SERVER_NAME" -->/http.html</h1>
+	<div class="linkblock">
+		<h2>Tests:</h2>
+			<p>Return response countaining ...</p>
+			<table>
+				<tr>
+					<td>status code:</td>
+					<td><form onsubmit="javascript:header('statuscode', document.getElementById('statuscode').value);return false;" >
+							<input type="text" name="statuscode" id="statuscode">
+							<input type="submit" value="Return">
+					</form></td>
+				</tr>
+				<tr>
+					<td>long header (input header lenth):</td>
+					<td><form onsubmit="javascript:header('longheader', document.getElementById('longheader').value);return false;" >
+							<input type="text" name="longheader" id="longheader">
+							<input type="submit" value="Return">
+					</form></td>
+				</tr>
+				<tr>
+					<td>header containing n nullbytes (#bytes):</td>
+					<td><form onsubmit="javascript:header('nullbytes', document.getElementById('nullbytes').value);return false;" >
+							<input type="text" name="nullbytes" id="nullbytes">
+							<input type="submit" value="Return">
+					</form></td>
+				</tr>
+				<tr>
+					<td>header content-type =</td>
+					<td><form onsubmit="javascript:header('contenttype', document.getElementById('contenttype').value);return false;" >
+							<input type="text" name="contenttype" id="contenttype">
+							<input type="submit" value="Return">
+					</form></td>
+				</tr>
+				<tr>
+					<td>custom header:</td>
+					<td><form onsubmit="javascript:window.location = 'http://http.<!--# echo var="SERVER_NAME" -->/'
+								+ 'customheader' + '/' 
+								+ document.getElementById('customheader_key').value + '='
+								+ document.getElementById('customheader_val').value;
+								return false;" >
+							<input type="text" name="customheader_key" id="customheader_key"> = 
+							<input type="text" name="customheader_val" id="customheader_val">
+							<input type="submit" value="Return">
+					</form></td>
+				</tr>
+				<tr>
+					<td>no http, just print:</td>
+					<td><form onsubmit="javascript:header('print', document.getElementById('print').value);return false;" >
+							<input type="text" name="print" id="print">
+							<input type="submit" value="Return">
+					</form></td>
+				</tr>
+			</table>
+            <br>
+            <a href="https://http.<!--# echo var="SERVER_NAME" -->/abort">Abort an http connection immediately</a>
+	</div>
+	<a href="index.html" id="home"> < HOME</a>
+</div>
+
+</body>
+</html>

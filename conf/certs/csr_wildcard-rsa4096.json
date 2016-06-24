@@ -1,0 +1,21 @@
+{
+    "CN": "*.[% SERVER_NAME %]",
+    "hosts": [
+        "[% SERVER_NAME %]",
+        "*.[% SERVER_NAME %]"
+    ],
+    "key": {
+        "algo": "rsa",
+        "size": 4096
+    },
+    "names": [
+        {
+            "C": "[% CERT_COUNTRY %]",
+            "ST": "[% CERT_STATE %]",
+            "L": "[% CERT_LOCATION %]",
+			"O": "[% CERT_ORGANIZATION %]",
+			"OU": "[% CERT_ORG_UNIT %]"
+        }
+    ]
+}
+
