@@ -191,7 +191,7 @@ generate_certificates() {
 
 	cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_exp2years.json csr_wildcard-rsa4096.json | cfssljson -bare wildcard-rsa4096
     
-    cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_exp2years.json csr_wildcard.json | cfssljson -bare wildcard-revoked
+    cfssl gencert -ca intermediate.pem -ca-key intermediate-key.pem -config conf_crl2years.json csr_wildcard.json | cfssljson -bare wildcard-revoked
 	
 	# make complete certificate chains
 	for file in $(find * -name "*.pem" -not -name "*-key.pem" -not -name "root.pem" -not -name "intermediate.pem")
@@ -219,10 +219,14 @@ generate_certificates() {
     then
         cfssl certinfo -cert wildcard-revoked-nochain.pem | jq --raw-output .serial_number | cfssl gencrl - intermediate.pem intermediate-key.pem \
             | base64 -d | openssl crl -outform PEM -inform DER -text -out "$CRL_OUT_FILE"
+        # Copy crl to content part publicly available
+        mkdir -p $TEMP_DIR/"$PROJECT_NAME"/html/tls/
+        cp "$CRL_OUT_FILE" $TEMP_DIR/"$PROJECT_NAME"/html/tls/crl.pem
     fi
 
 	# Delete all the json formatted cfssl config files
     rm *.json
+    
 	cd "$SAVEPWD"
 }
 

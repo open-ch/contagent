@@ -1,0 +1,14 @@
+{
+    "signing": {
+        "default": {
+            "expiry": "17520h",
+            "usages": [
+                "signing",
+                "key encipherment",
+                "server auth"
+            ],
+            "crl_url": "http://content.[% SERVER_NAME %]/tls/crl.pem"
+        }
+    }
+}
+
