@@ -1,2 +1,6 @@
 v1.01
         - Initial GitHub release
+
+v1.02
+        - Make and use public CRL
+        - Update README
