@@ -4,3 +4,6 @@ v1.01
 v1.02
         - Make and use public CRL
         - Update README
+
+v1.03
+        - Fix broken malware index page
